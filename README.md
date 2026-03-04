@@ -26,9 +26,11 @@ A gamified lead funnel built with Next.js App Router. It captures survey answers
    npm run dev
    ```
 
-## Vercel Deploy (Do-this-exactly)
-This repo is pre-configured with `vercel.json` to run migrations during build:
-- `npx prisma migrate deploy && npm run build`
+## Vercel Deploy (Reliable)
+This repo is pre-configured with `vercel.json` to run a plain app build:
+- `npm run build`
+
+> Why: running `prisma migrate deploy` inside Vercel build can fail if DB/direct URL env vars are missing or not reachable during build. Keep deploy builds simple, and run migrations separately.
 
 ### 1) Import repo in Vercel
 - Vercel dashboard → **Add New Project** → import this repository.
@@ -39,10 +41,12 @@ This repo is pre-configured with `vercel.json` to run migrations during build:
 Use `.env.vercel.example` as the source template.
 
 Required keys:
-- `POSTGRES_PRISMA_URL` → **pooled** DB URL from your provider
-- `POSTGRES_URL_NON_POOLING` → **direct/non-pooled** DB URL from your provider
+- `POSTGRES_PRISMA_URL` → pooled DB URL from your provider
 - `NEXT_PUBLIC_BOOKING_URL` → your Cal.com/Calendly booking page URL
 - `NEXT_PUBLIC_BOOKING_EMBED_URL` → optional embed URL (can be blank)
+
+Only needed if you run migrations in Vercel/CI:
+- `POSTGRES_URL_NON_POOLING` → direct/non-pooled DB URL
 
 ### Where to find DB URLs
 - **Neon**: Project → Dashboard → Connection Details
@@ -52,19 +56,17 @@ Required keys:
   - `Connection pooling` => `POSTGRES_PRISMA_URL`
   - `Direct connection` => `POSTGRES_URL_NON_POOLING`
 - **Railway**: Postgres service → Variables / Connect
-  - `DATABASE_URL` (pooled if offered) => `POSTGRES_PRISMA_URL`
+  - pooled/public URL => `POSTGRES_PRISMA_URL`
   - direct/private URL => `POSTGRES_URL_NON_POOLING`
 
 ### 3) Deploy
 Click **Deploy**.
 
-## Production Notes
-- In CI/CD, run Prisma deploy migrations before starting the app:
-  ```bash
-  npx prisma migrate deploy
-  ```
-- Set a real booking URL in `NEXT_PUBLIC_BOOKING_URL`.
-- Optionally set `NEXT_PUBLIC_BOOKING_EMBED_URL` to render an in-app calendar iframe.
+## Migration Commands
+Run these from local machine or CI (recommended):
+```bash
+npx prisma migrate deploy
+```
 
 ## Environment Variables
 See `.env.example` for local values and `.env.vercel.example` for Vercel mapping.
