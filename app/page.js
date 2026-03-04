@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { COMMITMENTS, FIRES, TIMES } from "@/lib/survey";
 
 const STAGES = [
   { text: "No thanks", emoji: "😊" },
@@ -9,34 +10,6 @@ const STAGES = [
   { text: "Catch me!", emoji: "💨" },
   { text: "...", emoji: "🥺" },
   { text: "ok fine", emoji: "😭", tiny: true },
-];
-
-const COMMITMENTS = [
-  "Client strategy & campaigns",
-  "Team management & hiring",
-  "New business / pitches",
-  "Content & social media",
-  "Operations & invoicing",
-  "Reporting & analytics",
-  "Networking & partnerships",
-  "Personal brand building",
-];
-
-const TIMES = [
-  "Morning (9–12)",
-  "Afternoon (12–4)",
-  "Evening (4–7)",
-  "Late night (9 PM onwards) 🌙",
-  "Weekend works best",
-];
-
-const FIRES = [
-  "Following up with people",
-  "Reporting across teams",
-  "Task management chaos",
-  "Content creation backlog",
-  "Client onboarding",
-  "Something else entirely",
 ];
 
 const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL || "https://cal.com";
@@ -86,6 +59,22 @@ function FloatingEmoji({ emoji, style }) {
   );
 }
 
+function buildBookingHref({ commitments, fire, time, leadId }) {
+  try {
+    const booking = new URL(BOOKING_URL);
+    booking.searchParams.set("name", "Pragya");
+    booking.searchParams.set("fire", fire || "Not provided");
+    booking.searchParams.set("time", time || "Not provided");
+    booking.searchParams.set("commitments", commitments.join(" | ") || "Not provided");
+    if (leadId) {
+      booking.searchParams.set("leadId", leadId);
+    }
+    return booking.toString();
+  } catch {
+    return "https://cal.com";
+  }
+}
+
 export default function PragyaConnect() {
   const [screen, setScreen] = useState("intro");
   const [noStage, setNoStage] = useState(0);
@@ -99,17 +88,15 @@ export default function PragyaConnect() {
   const [surveyStep, setSurveyStep] = useState(0);
   const [fadeIn, setFadeIn] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [leadId, setLeadId] = useState("");
 
   const containerRef = useRef(null);
 
-  const bookingHref = useMemo(() => {
-    const booking = new URL(BOOKING_URL);
-    booking.searchParams.set("name", "Pragya");
-    booking.searchParams.set("fire", fire || "Not provided");
-    booking.searchParams.set("time", time || "Not provided");
-    booking.searchParams.set("commitments", commitments.join(" | ") || "Not provided");
-    return booking.toString();
-  }, [commitments, fire, time]);
+  const bookingHref = useMemo(
+    () => buildBookingHref({ commitments, fire, time, leadId }),
+    [commitments, fire, time, leadId],
+  );
 
   const transition = useCallback((next) => {
     setFadeIn(false);
@@ -139,6 +126,7 @@ export default function PragyaConnect() {
   };
 
   const toggleCommitment = (c) => {
+    setSubmitError("");
     setCommitments((prev) =>
       prev.includes(c) ? prev.filter((x) => x !== c) : prev.length < 4 ? [...prev, c] : prev,
     );
@@ -146,6 +134,7 @@ export default function PragyaConnect() {
 
   const handleSubmitData = async () => {
     setIsSubmitting(true);
+    setSubmitError("");
     try {
       const response = await fetch("/api/survey", {
         method: "POST",
@@ -153,11 +142,17 @@ export default function PragyaConnect() {
         body: JSON.stringify({ commitments, fire, time }),
       });
 
-      if (!response.ok) throw new Error("Failed to submit");
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || "Failed to submit");
+      }
+
+      if (payload?.id) {
+        setLeadId(payload.id);
+      }
       transition("done");
     } catch (error) {
-      console.error("Submission error:", error);
-      transition("done");
+      setSubmitError(error instanceof Error ? error.message : "Unable to save your details right now.");
     } finally {
       setIsSubmitting(false);
     }
@@ -292,6 +287,12 @@ export default function PragyaConnect() {
         .booking-btn:hover {
           transform: translateY(-2px) scale(1.02);
         }
+        .error-text {
+          margin-top: 0.8rem;
+          color: #fca5a5;
+          font-size: 0.9rem;
+          text-align: center;
+        }
       `}</style>
 
       <FloatingEmoji emoji="✨" style={{ top: "8%", left: "10%" }} />
@@ -394,7 +395,7 @@ export default function PragyaConnect() {
                 <h2 style={{ fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.35rem", color: "#f1f5f9" }}>Biggest fire right now? 🔥</h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
                   {FIRES.map((f) => (
-                    <button key={f} className={`chip ${fire === f ? "active" : ""}`} onClick={() => setFire(f)} style={{ textAlign: "left" }}>
+                    <button key={f} className={`chip ${fire === f ? "active" : ""}`} onClick={() => { setFire(f); setSubmitError(""); }} style={{ textAlign: "left" }}>
                       {f}
                     </button>
                   ))}
@@ -418,7 +419,10 @@ export default function PragyaConnect() {
                     <button
                       key={t}
                       className={`chip ${time === t ? "active" : ""}`}
-                      onClick={() => setTime(t)}
+                      onClick={() => {
+                        setTime(t);
+                        setSubmitError("");
+                      }}
                       style={{ textAlign: "left" }}
                       disabled={isSubmitting}
                     >
@@ -426,6 +430,7 @@ export default function PragyaConnect() {
                     </button>
                   ))}
                 </div>
+                {submitError ? <p className="error-text">{submitError}</p> : null}
                 <div style={{ marginTop: "1.5rem", display: "flex", gap: "0.75rem", justifyContent: "center" }}>
                   <button className="chip" onClick={() => transition(() => setSurveyStep(1))} disabled={isSubmitting}>
                     ← Back

@@ -1,22 +1,24 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isValidSurveyPayload } from "@/lib/survey";
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const commitments = Array.isArray(body.commitments) ? body.commitments.slice(0, 4) : [];
-    const fire = typeof body.fire === "string" ? body.fire.trim() : "";
-    const time = typeof body.time === "string" ? body.time.trim() : "";
+    const normalized = isValidSurveyPayload(body);
 
-    if (!commitments.length || !fire || !time) {
-      return NextResponse.json({ error: "Missing required survey data." }, { status: 400 });
+    if (!normalized.valid) {
+      return NextResponse.json(
+        { error: "Invalid survey data. Please select valid options before continuing." },
+        { status: 400 },
+      );
     }
 
     const lead = await prisma.lead.create({
       data: {
-        commitments,
-        fire,
-        time,
+        commitments: normalized.commitments,
+        fire: normalized.fire,
+        time: normalized.time,
       },
     });
 
