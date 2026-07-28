@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { COMMITMENTS, FIRES, TIMES } from "@/lib/survey";
+import { buildBookingHref } from "@/lib/booking";
 
 const STAGES = [
   { text: "No thanks", emoji: "😊" },
@@ -12,16 +13,23 @@ const STAGES = [
   { text: "ok fine", emoji: "😭", tiny: true },
 ];
 
-const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL || "https://cal.com";
+const BOOKING_URL = process.env.NEXT_PUBLIC_BOOKING_URL;
 const BOOKING_EMBED_URL = process.env.NEXT_PUBLIC_BOOKING_EMBED_URL;
+
+function seededFraction(seed) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
 
 function ConfettiParticle({ delay }) {
   const colors = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#A78BFA", "#FB923C", "#34D399"];
-  const color = colors[Math.floor(Math.random() * colors.length)];
-  const left = Math.random() * 100;
-  const size = 6 + Math.random() * 8;
-  const dur = 1.5 + Math.random() * 1.5;
-  const rot = Math.random() * 720;
+  const seed = Math.round(delay * 1000) + 1;
+  const color = colors[Math.floor(seededFraction(seed) * colors.length)];
+  const left = seededFraction(seed + 1) * 100;
+  const size = 6 + seededFraction(seed + 2) * 8;
+  const dur = 1.5 + seededFraction(seed + 3) * 1.5;
+  const rot = seededFraction(seed + 4) * 720;
+  const isRound = seededFraction(seed + 5) > 0.5;
 
   return (
     <div
@@ -32,7 +40,7 @@ function ConfettiParticle({ delay }) {
         width: size,
         height: size,
         backgroundColor: color,
-        borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+        borderRadius: isRound ? "50%" : "2px",
         animation: `confettiFall ${dur}s ease-in ${delay}s forwards`,
         transform: `rotate(${rot}deg)`,
         zIndex: 1000,
@@ -59,22 +67,6 @@ function FloatingEmoji({ emoji, style }) {
   );
 }
 
-function buildBookingHref({ commitments, fire, time, leadId }) {
-  try {
-    const booking = new URL(BOOKING_URL);
-    booking.searchParams.set("name", "Pragya");
-    booking.searchParams.set("fire", fire || "Not provided");
-    booking.searchParams.set("time", time || "Not provided");
-    booking.searchParams.set("commitments", commitments.join(" | ") || "Not provided");
-    if (leadId) {
-      booking.searchParams.set("leadId", leadId);
-    }
-    return booking.toString();
-  } catch {
-    return "https://cal.com";
-  }
-}
-
 export default function PragyaConnect() {
   const [screen, setScreen] = useState("intro");
   const [noStage, setNoStage] = useState(0);
@@ -94,7 +86,7 @@ export default function PragyaConnect() {
   const containerRef = useRef(null);
 
   const bookingHref = useMemo(
-    () => buildBookingHref({ commitments, fire, time, leadId }),
+    () => buildBookingHref({ bookingUrl: BOOKING_URL, commitments, fire, time, leadId }),
     [commitments, fire, time, leadId],
   );
 
@@ -471,13 +463,20 @@ export default function PragyaConnect() {
               />
             ) : null}
 
-            <a className="booking-btn" href={bookingHref} target="_blank" rel="noreferrer">
-              Book your slot now →
-            </a>
-
-            <p style={{ color: "#64748b", marginTop: "0.75rem", fontSize: "0.85rem" }}>
-              Your responses are prefilled in the booking link to keep things frictionless.
-            </p>
+            {bookingHref ? (
+              <>
+                <a className="booking-btn" href={bookingHref} target="_blank" rel="noreferrer">
+                  Book your slot now →
+                </a>
+                <p style={{ color: "#64748b", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+                  Your responses are prefilled in the booking link to keep things frictionless.
+                </p>
+              </>
+            ) : (
+              <p className="error-text" role="alert">
+                Booking is temporarily unavailable. Please try again later.
+              </p>
+            )}
 
             <p style={{ color: "#475569", fontSize: "0.8rem", fontStyle: "italic", marginTop: "2rem" }}>
               PS — this entire thing was built by AI in minutes. 🤫
