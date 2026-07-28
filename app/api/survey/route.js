@@ -1,19 +1,29 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { isValidSurveyPayload } from "@/lib/survey";
+import { NextResponse } from "next/server.js";
+import { prisma } from "../../../lib/prisma.js";
+import { isValidSurveyPayload } from "../../../lib/survey.js";
 
 export async function POST(request) {
+  let body;
+
   try {
-    const body = await request.json();
-    const normalized = isValidSurveyPayload(body);
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid survey data. Please select valid options before continuing." },
+      { status: 400 },
+    );
+  }
 
-    if (!normalized.valid) {
-      return NextResponse.json(
-        { error: "Invalid survey data. Please select valid options before continuing." },
-        { status: 400 },
-      );
-    }
+  const normalized = isValidSurveyPayload(body);
 
+  if (!normalized.valid) {
+    return NextResponse.json(
+      { error: "Invalid survey data. Please select valid options before continuing." },
+      { status: 400 },
+    );
+  }
+
+  try {
     const lead = await prisma.lead.create({
       data: {
         commitments: normalized.commitments,

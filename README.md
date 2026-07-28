@@ -3,14 +3,14 @@
 A gamified lead funnel built with Next.js App Router. It captures survey answers, saves them with Prisma to PostgreSQL, and hands users off directly to booking.
 
 ## Stack
-- Next.js 14 (App Router)
+- Next.js 16 (App Router)
 - React
 - Prisma + PostgreSQL
 
 ## Setup (Local)
-1. Install dependencies:
+1. Use Node.js 20.9 or newer and install locked dependencies:
    ```bash
-   npm install
+   npm ci
    ```
 2. Create an `.env.local` from `.env.example`.
 3. Generate Prisma client:
@@ -25,6 +25,17 @@ A gamified lead funnel built with Next.js App Router. It captures survey answers
    ```bash
    npm run dev
    ```
+
+## Quality checks
+```bash
+npm run lint
+npm test
+npm run build
+npm audit --omit=dev --audit-level=high
+```
+
+The lockfile also pins patched PostCSS and Sharp releases because the supported
+Next.js runtime still declares older vulnerable transitive versions.
 
 ## Vercel Deploy (Reliable)
 This repo is pre-configured with `vercel.json` to run a plain app build:
@@ -44,6 +55,11 @@ Required keys:
 - `POSTGRES_PRISMA_URL` → pooled DB URL from your provider
 - `NEXT_PUBLIC_BOOKING_URL` → your Cal.com/Calendly booking page URL
 - `NEXT_PUBLIC_BOOKING_EMBED_URL` → optional embed URL (can be blank)
+
+The booking handoff intentionally stays unavailable when
+`NEXT_PUBLIC_BOOKING_URL` is missing, invalid, uses plain HTTP, points only to
+the generic Cal.com home page, or still contains the example `your-handle`
+placeholder.
 
 Only needed if you run migrations in Vercel/CI:
 - `POSTGRES_URL_NON_POOLING` → direct/non-pooled DB URL
